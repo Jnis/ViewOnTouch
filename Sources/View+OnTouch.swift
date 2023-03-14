@@ -78,6 +78,7 @@ struct TouchLocatingView: UIViewRepresentable {
         var touchTypes: OnTouchType = .all {
             didSet {
                 tapGesture.isEnabled = touchTypes.contains(.tapGesture)
+                tapGesture.cancelsTouchesInView = false
                 longPressGesture.isEnabled = touchTypes.contains(.longGestureStarted) || touchTypes.contains(.longGestureMoved) || touchTypes.contains(.longGestureEnded)
             }
         }
