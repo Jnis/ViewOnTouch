@@ -19,13 +19,14 @@ public struct OnTouchType: OptionSet {
     public static let started = OnTouchType(rawValue: 1 << 0)
     public static let moved = OnTouchType(rawValue: 1 << 1)
     public static let ended = OnTouchType(rawValue: 1 << 2)
-    public static let tapGestureTouch = OnTouchType(rawValue: 1 << 3) // first touch
+    public static let firstTouch = OnTouchType(rawValue: 1 << 3)
     public static let tapGesture = OnTouchType(rawValue: 1 << 4)
     public static let longGestureStarted = OnTouchType(rawValue: 1 << 5)
     public static let longGestureMoved = OnTouchType(rawValue: 1 << 6)
     public static let longGestureEnded = OnTouchType(rawValue: 1 << 7)
-    public static let allWithoutLongGesture: OnTouchType = [.started, .moved, .ended, tapGestureTouch, tapGesture]
-    public static let all: OnTouchType = [.started, .moved, .ended, tapGestureTouch, tapGesture, .longGestureStarted, .longGestureMoved, .longGestureEnded]
+    public static let allWithoutGestures: OnTouchType = [.started, .moved, .ended, firstTouch]
+    public static let allWithoutLongGesture: OnTouchType = [.started, .moved, .ended, firstTouch, tapGesture]
+    public static let all: OnTouchType = [.started, .moved, .ended, firstTouch, tapGesture, .longGestureStarted, .longGestureMoved, .longGestureEnded]
 }
 
 // A new method on View that makes it easier to apply our touch locater view.
@@ -71,15 +72,17 @@ struct TouchLocatingView: UIViewRepresentable {
     func updateUIView(_ uiView: TouchLocatingUIView, context: Context) {
     }
 
-    class TouchLocatingGestureDelegate: NSObject, UIGestureRecognizerDelegate {
+    private class TouchLocatingGestureDelegate: NSObject, UIGestureRecognizerDelegate {
         let start: (UITouch) -> Void
+        var shouldStart: Bool = false
+        
         init(start: @escaping (UITouch) -> Void) {
             self.start = start
         }
     
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
             start(touch)
-            return false
+            return shouldStart
         }
 
         func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive event: UIEvent) -> Bool {
@@ -94,7 +97,7 @@ struct TouchLocatingView: UIViewRepresentable {
         var limitToBounds = true
         var touchTypes: OnTouchType = .all {
             didSet {
-                tapGesture.isEnabled = touchTypes.contains(.tapGesture)
+                tapGestureDelegate.shouldStart = touchTypes.contains(.tapGesture)
                 longPressGesture.isEnabled = touchTypes.contains(.longGestureStarted) || touchTypes.contains(.longGestureMoved) || touchTypes.contains(.longGestureEnded)
             }
         }
@@ -121,7 +124,7 @@ struct TouchLocatingView: UIViewRepresentable {
         private lazy var tapGestureDelegate = TouchLocatingGestureDelegate(start: {[weak self] touch in
             guard let self else { return }
             let location = touch.location(in: self)
-            send(location, forEvent: .tapGestureTouch)
+            send(location, forEvent: .firstTouch)
         })
         
         private func customInit() {
