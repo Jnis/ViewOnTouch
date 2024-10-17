@@ -19,12 +19,13 @@ public struct OnTouchType: OptionSet {
     public static let started = OnTouchType(rawValue: 1 << 0)
     public static let moved = OnTouchType(rawValue: 1 << 1)
     public static let ended = OnTouchType(rawValue: 1 << 2)
-    public static let tapGesture = OnTouchType(rawValue: 1 << 3)
-    public static let longGestureStarted = OnTouchType(rawValue: 1 << 4)
-    public static let longGestureMoved = OnTouchType(rawValue: 1 << 5)
-    public static let longGestureEnded = OnTouchType(rawValue: 1 << 6)
-    public static let allWithoutLongGesture: OnTouchType = [.started, .moved, .ended, tapGesture]
-    public static let all: OnTouchType = [.started, .moved, .ended, tapGesture, .longGestureStarted, .longGestureMoved, .longGestureEnded]
+    public static let tapGestureTouch = OnTouchType(rawValue: 1 << 3) // first touch
+    public static let tapGesture = OnTouchType(rawValue: 1 << 4)
+    public static let longGestureStarted = OnTouchType(rawValue: 1 << 5)
+    public static let longGestureMoved = OnTouchType(rawValue: 1 << 6)
+    public static let longGestureEnded = OnTouchType(rawValue: 1 << 7)
+    public static let allWithoutLongGesture: OnTouchType = [.started, .moved, .ended, tapGestureTouch, tapGesture]
+    public static let all: OnTouchType = [.started, .moved, .ended, tapGestureTouch, tapGesture, .longGestureStarted, .longGestureMoved, .longGestureEnded]
 }
 
 // A new method on View that makes it easier to apply our touch locater view.
@@ -70,6 +71,22 @@ struct TouchLocatingView: UIViewRepresentable {
     func updateUIView(_ uiView: TouchLocatingUIView, context: Context) {
     }
 
+    class TouchLocatingGestureDelegate: NSObject, UIGestureRecognizerDelegate {
+        let start: (UITouch) -> Void
+        init(start: @escaping (UITouch) -> Void) {
+            self.start = start
+        }
+    
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+            start(touch)
+            return false
+        }
+
+        func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive event: UIEvent) -> Bool {
+            return true
+        }
+    }
+    
     // The internal UIView responsible for catching taps
     class TouchLocatingUIView: UIView {
         // Internal copies of our settings
@@ -78,7 +95,6 @@ struct TouchLocatingView: UIViewRepresentable {
         var touchTypes: OnTouchType = .all {
             didSet {
                 tapGesture.isEnabled = touchTypes.contains(.tapGesture)
-                tapGesture.cancelsTouchesInView = false
                 longPressGesture.isEnabled = touchTypes.contains(.longGestureStarted) || touchTypes.contains(.longGestureMoved) || touchTypes.contains(.longGestureEnded)
             }
         }
@@ -95,15 +111,25 @@ struct TouchLocatingView: UIViewRepresentable {
             customInit()
         }
         
-        private lazy var tapGesture = UITapGestureRecognizer(target: self, action: #selector(tapGestureAction(gesture:)))
+        private lazy var tapGesture = {
+            let g = UITapGestureRecognizer(target: self, action: #selector(tapGestureAction(gesture:)))
+            g.delegate = tapGestureDelegate
+            g.cancelsTouchesInView = false
+            return g
+        }()
         private lazy var longPressGesture = UILongPressGestureRecognizer(target: self, action: #selector(longPressGestureAction(gesture:)))
+        private lazy var tapGestureDelegate = TouchLocatingGestureDelegate(start: {[weak self] touch in
+            guard let self else { return }
+            let location = touch.location(in: self)
+            send(location, forEvent: .tapGestureTouch)
+        })
         
         private func customInit() {
             isUserInteractionEnabled = true
             self.addGestureRecognizer(tapGesture)
             self.addGestureRecognizer(longPressGesture)
         }
-
+        
         @objc private func tapGestureAction(gesture: UIGestureRecognizer) {
             let location = gesture.location(in: self)
             send(location, forEvent: .tapGesture)
