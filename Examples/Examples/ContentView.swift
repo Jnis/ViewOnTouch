@@ -28,6 +28,35 @@ struct ContentView: View {
     
     var testView: some View {
         VStack {
+            Color.red
+                .frame(width: 100, height: 100)
+                .onTouch(type: .allWithoutLongGesture,
+                         perform: { location, event in
+                    switch event {
+                    case .started:
+                        print("Started at \(location)")
+                    case .moved:
+                        print("Moved at \(location)")
+                    case .ended:
+                        print("Ended at \(location)")
+                    case .tapGesture:
+                        print("TapGesture at \(location)")
+                    case .tapGestureTouch:
+                        print("TapGestureTouch at \(location)")
+                    case .longGestureStarted:
+                        print("LongGestureStarted at \(location)")
+                    case .longGestureMoved:
+                        print("LongGestureMoved at \(location)")
+                    case .longGestureEnded:
+                        print("LongGestureEnded at \(location)")
+                    default:
+                        break
+                    }
+                })
+                .onTapGesture {
+                    print("onTapGesture")
+                }
+            
             Button(action: {
                 print("Action1")
             }, label: {
@@ -45,6 +74,8 @@ struct ContentView: View {
                         print("Moved at \(location)")
                     case .ended:
                         print("Ended at \(location)")
+                    case .tapGesture:
+                        print("TapGesture at \(location)")
                     case .tapGestureTouch:
                         print("TapGestureTouch at \(location)")
                     case .longGestureStarted:

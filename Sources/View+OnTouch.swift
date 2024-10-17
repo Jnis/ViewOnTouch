@@ -20,11 +20,12 @@ public struct OnTouchType: OptionSet {
     public static let moved = OnTouchType(rawValue: 1 << 1)
     public static let ended = OnTouchType(rawValue: 1 << 2)
     public static let tapGestureTouch = OnTouchType(rawValue: 1 << 3) // first touch
+    public static let tapGesture = OnTouchType(rawValue: 1 << 4)
     public static let longGestureStarted = OnTouchType(rawValue: 1 << 5)
     public static let longGestureMoved = OnTouchType(rawValue: 1 << 6)
     public static let longGestureEnded = OnTouchType(rawValue: 1 << 7)
-    public static let allWithoutLongGesture: OnTouchType = [.started, .moved, .ended, tapGestureTouch]
-    public static let all: OnTouchType = [.started, .moved, .ended, tapGestureTouch, .longGestureStarted, .longGestureMoved, .longGestureEnded]
+    public static let allWithoutLongGesture: OnTouchType = [.started, .moved, .ended, tapGestureTouch, tapGesture]
+    public static let all: OnTouchType = [.started, .moved, .ended, tapGestureTouch, tapGesture, .longGestureStarted, .longGestureMoved, .longGestureEnded]
 }
 
 // A new method on View that makes it easier to apply our touch locater view.
@@ -93,6 +94,7 @@ struct TouchLocatingView: UIViewRepresentable {
         var limitToBounds = true
         var touchTypes: OnTouchType = .all {
             didSet {
+                tapGesture.isEnabled = touchTypes.contains(.tapGesture)
                 longPressGesture.isEnabled = touchTypes.contains(.longGestureStarted) || touchTypes.contains(.longGestureMoved) || touchTypes.contains(.longGestureEnded)
             }
         }
@@ -110,7 +112,7 @@ struct TouchLocatingView: UIViewRepresentable {
         }
         
         private lazy var tapGesture = {
-            let g = UITapGestureRecognizer()
+            let g = UITapGestureRecognizer(target: self, action: #selector(tapGestureAction(gesture:)))
             g.delegate = tapGestureDelegate
             g.cancelsTouchesInView = false
             return g
@@ -126,6 +128,11 @@ struct TouchLocatingView: UIViewRepresentable {
             isUserInteractionEnabled = true
             self.addGestureRecognizer(tapGesture)
             self.addGestureRecognizer(longPressGesture)
+        }
+        
+        @objc private func tapGestureAction(gesture: UIGestureRecognizer) {
+            let location = gesture.location(in: self)
+            send(location, forEvent: .tapGesture)
         }
         
         @objc private func longPressGestureAction(gesture: UILongPressGestureRecognizer) {
